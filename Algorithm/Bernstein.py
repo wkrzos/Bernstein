@@ -1,10 +1,33 @@
 from tabulate import tabulate
 
-from Utility import *
-from FuncDependency import *
+from Algorithm.Utility import *
+from Algorithm.FuncDependency import *
 
 
 class Bernstein(object):
+    
+    def compute(self, G):
+        """
+        Compute the bernstein algorithm
+        :param G: The input functional dependencies
+        :return: None
+        """
+        self.__G = G
+        print("Input Functional Dependencies (G):", self.__G)
+        self.__H = find_minimal_cover(self.__G)
+        print("Minimal Cover (H):", self.__H)
+        self.__partitioned_fds_list = self.partition(self.__H)
+        print("Partitioned FDs List:", self.__partitioned_fds_list)
+        self.__merged_fds_list = self.merge_keys(self.__partitioned_fds_list, self.__H)
+        print("Merged FDs List:", self.__merged_fds_list)
+        self.__final_fds_list = self.eliminate_transitive_fds(self.__merged_fds_list)
+        print("Final FDs List:", self.__final_fds_list)
+        self.__relations = self.construct_relations(self.__final_fds_list)
+        print("Relations:", self.__relations)
+        self.__pnp_table = self.find_p_np_table(self.__G)
+        print("P-NP Table:", self.__pnp_table)
+        self.__all_keys = self.find_all_keys_based_on_prime_table(self.__pnp_table, self.__G)
+        print("All Keys:", self.__all_keys)
 
     def __init__(self):
         """
@@ -402,115 +425,3 @@ class Bernstein(object):
                     continue
 
         return all_keys
-
-    @staticmethod
-    def superfluous_attribute_detection_algorithm(relations, G, test_relation, test_attribute):
-
-        if not isinstance(test_relation, dict):
-            raise Exception('test_relation is not dict')
-
-        if not isinstance(test_attribute, set):
-            raise Exception('test_attribute is not set')
-
-        if len(test_attribute) != 1:
-            raise Exception('test_attribute must have only one attribute')
-
-        if not isinstance(relations, list):
-            raise Exception('relations must be a list')
-
-        if not isinstance(G, FDList):
-            raise Exception('G must be a instance of FDList')
-
-        isSuperfluous = True
-
-        # compute attribute set in test_relation
-        A = get_all_attributes_in_relation(test_relation)
-
-        # test attribute must in test relation
-        if not test_attribute <= A:
-            raise Exception('test_attribute must be subset of test_relation')
-
-        # whether test_attribute is superfluous in test_relation
-        # Step 1
-        all_keys = get_all_keys_in_relation(test_relation)
-
-        Ki_prime = deepcopy(all_keys)
-
-        for key in all_keys:
-            if test_attribute <= key:
-                Ki_prime.remove(key)
-
-        # Step 1.1
-        Gi_prime = FDList()
-
-        # construct test relation(k -> A - k - test_attribute)
-        test_relation_keys = test_relation['key']
-
-        for k in test_relation_keys:
-            Gi_prime.add_fd(FD(k, frozenset(A - k - test_attribute)))
-
-        for rel in relations:
-            if rel is not test_relation:
-                A_i = get_all_attributes_in_relation(rel)
-                for k in rel['key']:
-                    Gi_prime.add_fd(FD(k, frozenset(A_i - k)))
-
-        # Step 2
-        if len(Ki_prime) == 0:
-            print '---------------------------------'
-            print test_attribute, ' is not superfluous.'
-            print '---------------------------------'
-            isSuperfluous = False
-            return isSuperfluous
-        else:
-            go_step3 = False
-            for k in Ki_prime:
-                k_closure = compute_closure(k, Gi_prime)
-                if test_attribute <= k_closure:
-                    # go to step3
-                    go_step3 = True
-                    break
-                else:
-                    continue
-
-        if not go_step3:
-            print '---------------------------------'
-            print test_attribute, ' is not superfluous.'
-            print '---------------------------------'
-            isSuperfluous = False
-            return isSuperfluous
-
-        # Step 3
-        test_attribute_key_set = [key for key in all_keys if key not in Ki_prime]
-
-        for key in test_attribute_key_set:
-            while isSuperfluous:
-                key_closure = compute_closure(key, Gi_prime)
-                if A <= key_closure:
-                    break
-                else:
-                    # next
-                    M = key_closure
-                    temp_set = M & A - test_attribute
-
-                    G_plus = compute_closure(temp_set, G)
-
-                    if A <= G_plus:
-                        Ki_prime = [key for key in all_keys if key in temp_set and key not in Ki_prime] + Ki_prime
-                        print Ki_prime
-                    else:
-                        isSuperfluous = False
-
-        # output
-        if isSuperfluous:
-            print '---------------------------------'
-            print test_attribute, ' is superfluous.'
-            print 'Ki_prime is', Ki_prime
-            print '---------------------------------'
-            return True
-        else:
-            print '---------------------------------'
-            print test_attribute, ' is not superfluous.'
-            print '---------------------------------'
-            return False
-

@@ -1,5 +1,5 @@
 from itertools import combinations
-from FuncDependency import *
+from Algorithm.FuncDependency import *
 
 
 def find_minimal_cover(S):
